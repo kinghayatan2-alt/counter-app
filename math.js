@@ -23,3 +23,29 @@ export function candidateFit(n,k,d){
  const best=k===0||k===n?0:logBinomial(n,k,n/k);
  return candidate===-Infinity?0:100*Math.exp(Math.min(0,candidate-best));
 }
+
+// Binomial CDF via regularized incomplete beta, using modified Lentz fractions.
+function betaFraction(a,b,x){
+ const tiny=1e-300,eps=2e-13;const nonzero=v=>Math.abs(v)<tiny?(v<0?-tiny:tiny):v;
+ const qab=a+b,qap=a+1,qam=a-1;let c=1,d=1/nonzero(1-qab*x/qap),h=d;
+ for(let m=1;m<=20000;m++){
+  const m2=2*m;let aa=m*(b-m)*x/((qam+m2)*(a+m2));
+  d=1/nonzero(1+aa*d);c=nonzero(1+aa/c);h*=d*c;
+  aa=-(a+m)*(qab+m)*x/((a+m2)*(qap+m2));
+  d=1/nonzero(1+aa*d);c=nonzero(1+aa/c);const delta=d*c;h*=delta;
+  if(Math.abs(delta-1)<eps)return h;
+ }
+ throw new RangeError('計算が収束しませんでした。抽選回数を小さくしてください。');
+}
+export function binomialCDF(n,k,d){
+ if(k<0)return 0;if(k>=n)return 1;if(d===1)return 0;
+ const p=1/d,q=1-p;if(k===0)return Math.exp(n*Math.log1p(-p));
+ const a=k+1,b=n-k,bt=Math.exp(logBinomial(n,k,d)+Math.log(n-k)+Math.log(p));
+ const cdf=p<(a+1)/(a+b+2)?1-bt*betaFraction(a,b,p)/a:bt*betaFraction(b,a,q)/b;
+ return Math.max(0,Math.min(1,cdf));
+}
+function binomialQuantile(n,d,target){let lo=0,hi=n;while(lo<hi){const mid=Math.floor((lo+hi)/2);if(binomialCDF(n,mid,d)>=target)hi=mid;else lo=mid+1;}return lo;}
+export function fluctuation95(n,d){
+ if(!Number.isInteger(n)||n<1||n>MAX||!Number.isFinite(d)||d<1||d>MAX)throw new RangeError('抽選回数と分母を確認してください。');
+ return {mean:n/d,low:binomialQuantile(n,d,.025),high:binomialQuantile(n,d,.975)};
+}

@@ -12,3 +12,6 @@ body{position:fixed;top:var(--viewport-top,0px);left:0;right:0}
 .keyboard-open #compare-form{gap:8px}
 .keyboard-open #compare-form .card{padding:10px 12px}
 .keyboard-open #compare-form input{min-height:42px;font-size:20px}
+
+.extra-field{margin-top:10px}.extra-field label{font-size:15px}.extra-field input{min-height:44px;padding:8px 13px}#reset-compare{flex:none}.keyboard-open #reset-compare{display:none}
+@media(max-height:680px){.extra-field{margin-top:7px}#counter-panel>.totals-card{padding-top:10px;padding-bottom:10px}.extra-field input{min-height:40px;padding-top:6px;padding-bottom:6px}}

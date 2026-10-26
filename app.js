@@ -1,4 +1,4 @@
-import {MAX,integer,denominator,fraction,compareCandidates} from './math.js?v=2';
+import {MAX,integer,denominator,fraction,candidateFit} from './math.js?v=3';
 const $=id=>document.getElementById(id),KEY='count-compare-v1',fields=['total','trials','wins','denom-a','denom-b'];let counts=[0,0,0],tab='counter';
 try{const s=JSON.parse(localStorage.getItem(KEY)||'null');if(s){if(Array.isArray(s.counts)&&s.counts.length===3&&s.counts.every(n=>Number.isInteger(n)&&n>=0&&n<=MAX))counts=s.counts;for(const id of fields)if((id==='total'||s.version===2)&&typeof s.fields?.[id]==='string'&&s.fields[id].length<100)$(id).value=s.fields[id];if(s.tab==='compare')tab='compare';}}catch{}
 function save(){let ok=true;try{localStorage.setItem(KEY,JSON.stringify({version:2,counts,tab,fields:Object.fromEntries(fields.map(id=>[id,$(id).value]))}));}catch{ok=false;}$('save-status').hidden=ok;$('save-status').textContent=ok?'':'保存できません。この画面を閉じると値が失われる場合があります。';$('save-status').classList.toggle('warning',!ok);}
@@ -15,11 +15,16 @@ function observed(){const n=integer($('trials').value),k=integer($('wins').value
 function calculate(silent=false){const n=integer($('trials').value),k=integer($('wins').value),a=denominator($('denom-a').value),b=denominator($('denom-b').value);let error='',invalid='';for(const id of fields.slice(1))$(id).removeAttribute('aria-invalid');
 if(n===null||n===0){error='抽選回数は1〜10億の整数で入力してください。';invalid='trials';}else if(k===null||k>n){error='当選回数は0以上、抽選回数以下の整数で入力してください。';invalid='wins';}else if(a===null||b===null){error='比較する分母は1〜10億で入力してください。';invalid=a===null?'denom-a':'denom-b';}
 $('compare-error').textContent=silent?'':error;$('results').replaceChildren();if(error){if(!silent)$(invalid).setAttribute('aria-invalid','true');return false;}
-let weights;try{weights=compareCandidates(n,k,a,b);}catch(e){$('compare-error').textContent=silent?'':e.message;return false;}
-const h=document.createElement('h2');h.className='result-heading';h.textContent='2候補を同条件で比較';$('results').append(h);
-[a,b].forEach((d,i)=>{const card=document.createElement('article');card.className='card result-card';const label=document.createElement('p');label.className='result-label';label.textContent=`1/${d.toLocaleString('ja-JP',{maximumFractionDigits:10})} の可能性`;const value=document.createElement('p');value.className='result-value';const w=weights[i];value.textContent=w>0&&w<.005?'0.01%未満':w<100&&w>99.995?'99.99%超':w.toFixed(2)+'%';const bar=document.createElement('div');bar.className='result-bar';const fill=document.createElement('div');fill.style.width=w+'%';bar.append(fill);card.append(label,value,bar);$('results').append(card);});return true;}
+let weights;try{weights=[candidateFit(n,k,a),candidateFit(n,k,b)];}catch(e){$('compare-error').textContent=silent?'':e.message;return false;}
+const h=document.createElement('h2');h.className='result-heading';h.textContent='実測との一致度';$('results').append(h);
+[a,b].forEach((d,i)=>{const card=document.createElement('article');card.className='card result-card';const label=document.createElement('p');label.className='result-label';label.textContent=`1/${d.toLocaleString('ja-JP',{maximumFractionDigits:10})} の一致度`;const value=document.createElement('p');value.className='result-value';const w=weights[i];value.textContent=w>0&&w<.005?'0.01%未満':w<100&&w>99.995?'99.99%超':w.toFixed(2)+'%';const bar=document.createElement('div');bar.className='result-bar';const fill=document.createElement('div');fill.style.width=w+'%';bar.append(fill);card.append(label,value,bar);$('results').append(card);});return true;}
 for(const id of fields.slice(1))$(id).addEventListener('input',()=>{observed();$('results').replaceChildren();$('compare-error').textContent='';save();});$('compare-form').addEventListener('submit',e=>{e.preventDefault();document.activeElement?.blur();calculate();save();});render();observed();calculate(true);activate(tab);
 if('serviceWorker'in navigator&&location.protocol!=='file:')navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).then(reg=>reg.update()).catch(()=>{});
 // The visual viewport shrinks when the iPhone keyboard is visible.
-function fitViewport(){const v=window.visualViewport;if(!v)return;document.documentElement.style.setProperty('--app-height',v.height+'px');document.body.classList.toggle('keyboard-open',v.height<window.innerHeight*.78);}
+function fitViewport(){const v=window.visualViewport;if(!v)return;document.documentElement.style.setProperty('--app-height',v.height+'px');document.documentElement.style.setProperty('--viewport-top',v.offsetTop+'px');document.body.classList.toggle('keyboard-open',v.height<window.innerHeight*.78);}
 window.visualViewport?.addEventListener('resize',fitViewport);fitViewport();
+
+// Select the existing value after Safari finishes placing the caret.
+for(const id of fields){const input=$(id);const selectValue=()=>input.setSelectionRange(0,input.value.length);input.addEventListener('focus',()=>{requestAnimationFrame(()=>{if(document.activeElement===input)selectValue();});});input.addEventListener('click',selectValue);}
+// A tap on empty space ends editing; controls keep their normal behavior.
+document.addEventListener('click',event=>{if(event.target.closest('input,button,a,dialog'))return;const active=document.activeElement;if(active?.tagName==='INPUT'){active.blur();window.scrollTo(0,0);fitViewport();}});

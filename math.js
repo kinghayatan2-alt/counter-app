@@ -15,3 +15,11 @@ export function compareCandidates(n,k,a,b){
  const delta=lb-la;const first=delta>=0?Math.exp(-delta)/(1+Math.exp(-delta)):1/(1+Math.exp(delta));
  return [100*first,100*(1-first)];
 }
+
+// Relative likelihood: 100% is the best-fitting Bernoulli probability k/n.
+// This is a fit score, not the probability that a hypothesis is true.
+export function candidateFit(n,k,d){
+ const candidate=logBinomial(n,k,d);
+ const best=k===0||k===n?0:logBinomial(n,k,n/k);
+ return candidate===-Infinity?0:100*Math.exp(Math.min(0,candidate-best));
+}
